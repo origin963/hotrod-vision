@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../../Users/randyfox/Desktop/hotrod-happenings/hotrod-vision/netlify/functions/create-checkout-session.js"],
+  "sourceRoot": "/private/var/folders/lf/4cy8tx6n13l25plvvwwxk7980000gn/T/tmp-61522-OWA9DaYmk0I3",
+  "sourcesContent": ["export async function handler(event) {\n  return {\n    statusCode: 200,\n    headers: { \"content-type\": \"application/json\" },\n    body: JSON.stringify({\n      ok: true,\n      function: \"create-checkout-session\",\n      method: event.httpMethod,\n      note: \"If you can see this, Netlify is loading functions correctly.\"\n    }),\n  };\n}"],
+  "mappings": ";;;;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,eAAsB,QAAQ,OAAO;AACnC,SAAO;AAAA,IACL,YAAY;AAAA,IACZ,SAAS,EAAE,gBAAgB,mBAAmB;AAAA,IAC9C,MAAM,KAAK,UAAU;AAAA,MACnB,IAAI;AAAA,MACJ,UAAU;AAAA,MACV,QAAQ,MAAM;AAAA,MACd,MAAM;AAAA,IACR,CAAC;AAAA,EACH;AACF;",
+  "names": []
+}

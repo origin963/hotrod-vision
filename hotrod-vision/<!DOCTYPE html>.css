@@ -1,0 +1,2541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="referrer" content="no-referrer" />
+  <title>HotRod Happenings | v26.1 Restored Engine</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --jet-black: #050505;
+      --graphite: #1a1a1a;
+      --chrome: #d4d4d4;
+      --candy-red: #ff0033;
+      --neon-blue: #00f3ff;
+      --money-green: #00ff9d;
+      --glass-panel: rgba(20, 20, 20, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --blur-amount: 15px;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--jet-black);
+      color: var(--chrome);
+      font-size: 16px;
+      overflow-x: hidden;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .hidden { display: none !important; }
+    .app-hidden { display: none !important; }
+
+    .carbon-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #111;
+      background-image:
+        radial-gradient(black 15%, transparent 16%),
+        radial-gradient(black 15%, transparent 16%),
+        radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%),
+        radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%);
+      background-position: 0 0, 8px 8px, 0 1px, 8px 9px;
+      background-size: 16px 16px;
+      z-index: -3;
+    }
+
+    #splash-layer {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9000;
+      transition: opacity 1.5s ease-in;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .powered-by {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px;
+      color: #666;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px black;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+
+    #splash-logo {
+      width: 80vw;
+      max-width: 600px;
+      transition: transform 0.1s;
+      filter: drop-shadow(0 20px 50px black);
+    }
+
+    .shake { animation: vibrate 0.05s infinite; }
+
+    @keyframes vibrate {
+      0% { transform: translate(2px, 2px) rotate(0deg); }
+      100% { transform: translate(-2px, -2px) rotate(-1deg); }
+    }
+
+    .launch { animation: zoomAway 1.5s forwards ease-in-out; }
+
+    @keyframes zoomAway {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(4); opacity: 0; filter: blur(10px); }
+    }
+
+    .tap-prompt {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px;
+      color: var(--candy-red);
+      margin-top: 40px;
+      animation: blink 2s infinite;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #login-layer {
+      display: none;
+      opacity: 0;
+      transition: opacity 1s ease;
+      position: fixed;
+      inset: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(20,20,20,0.98), #000);
+      z-index: 8000;
+      padding: 20px;
+    }
+
+    .scanner-box {
+      width: 100px;
+      height: 100px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 20px;
+      background: rgba(0,0,0,0.5);
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      transition: border-color 0.3s;
+    }
+
+    .scan-line {
+      width: 100%;
+      height: 2px;
+      background: var(--candy-red);
+      box-shadow: 0 0 10px var(--candy-red);
+      position: absolute;
+      top: 0;
+      left: 0;
+      animation: scanMove 1.5s infinite linear;
+    }
+
+    @keyframes scanMove {
+      0% { top: 0; opacity: 0.5; }
+      50% { top: 100%; opacity: 1; }
+      100% { top: 0; opacity: 0.5; }
+    }
+
+    .scan-icon {
+      font-size: 40px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.5;
+    }
+
+    .auth-container {
+      width: 100%;
+      max-width: 320px;
+      background: var(--glass-panel);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(var(--blur-amount));
+    }
+
+    .btn-primary {
+      background: var(--candy-red);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(230, 0, 35, 0.4);
+      width: 100%;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    .btn-primary:active { transform: scale(0.98); }
+
+    .input-ghost {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #333;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+      outline: none;
+      transition: border 0.3s;
+    }
+
+    .input-ghost:focus { border-color: var(--neon-blue); }
+
+    .switch-link {
+      color: var(--neon-blue);
+      cursor: pointer;
+      font-size: 12px;
+      text-align: center;
+      display: block;
+      margin-top: 15px;
+      text-decoration: underline;
+    }
+
+    #auth-error {
+      color: var(--candy-red);
+      font-size: 12px;
+      text-align: center;
+      margin-bottom: 10px;
+      min-height: 15px;
+    }
+
+    #mainApp {
+      display: none;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 100;
+    }
+
+    .app-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      z-index: 500;
+    }
+
+    .logo-small {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      color: white;
+    }
+
+    .version-tag {
+      font-size: 10px;
+      color: #fff;
+      background: linear-gradient(45deg, #333, #555);
+      padding: 2px 6px;
+      border-radius: 4px;
+      vertical-align: top;
+      border: 1px solid #666;
+    }
+
+    .icon-btn {
+      font-size: 20px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:active { transform: scale(0.9); }
+
+    .token-pill {
+      background: rgba(0,255,157,0.1);
+      border: 1px solid var(--money-green);
+      padding: 5px 12px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--money-green);
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .main-section {
+      position: absolute;
+      top: 70px;
+      left: 0;
+      width: 100%;
+      height: calc(100vh - 160px);
+      overflow-y: auto;
+      padding: 20px;
+      display: none;
+      padding-bottom: 80px;
+    }
+
+    #dashboardSection { display: block; }
+
+    .bottom-nav {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 90px;
+      background: rgba(10,10,10,0.98);
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      z-index: 1000;
+      backdrop-filter: blur(15px);
+    }
+
+    .nav-item {
+      text-align: center;
+      opacity: 0.5;
+      cursor: pointer;
+      flex: 1;
+      font-size: 10px;
+      font-weight: 700;
+      transition: 0.2s;
+      color: #888;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      padding: 5px;
+    }
+
+    .nav-item.active {
+      opacity: 1;
+      color: var(--candy-red);
+      transform: translateY(-2px);
+      text-shadow: 0 0 10px rgba(230,0,35,0.4);
+      border: 2px solid var(--candy-red);
+      border-radius: 8px;
+      background: rgba(255, 0, 51, 0.1);
+    }
+
+    .nav-item:hover {
+      border: 2px solid var(--candy-red);
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(255, 0, 51, 0.4);
+    }
+
+    .nav-item span:first-child {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    .hero-section {
+      height: 200px;
+      margin: 0 0 20px 0;
+      position: relative;
+      background-color: #000;
+      border-bottom: 1px solid var(--glass-border);
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      border-radius: 12px;
+    }
+
+    .hero-content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      padding: 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+      z-index: 10;
+    }
+
+    .hero-title {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #ff0050, #ff6b00, #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 40px rgba(255, 107, 0, 0.5);
+      margin-bottom: 0.5rem;
+      animation: glow 2s ease-in-out infinite alternate;
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    @keyframes glow {
+      from { filter: drop-shadow(0 0 10px rgba(255, 107, 0, 0.4)); }
+      to { filter: drop-shadow(0 0 20px rgba(255, 107, 0, 0.8)); }
+    }
+
+    /* QUICK CHIPS */
+    .quick-chips {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .quick-chip {
+      background: linear-gradient(135deg, rgba(255, 0, 51, 0.15), rgba(0, 243, 255, 0.15));
+      border: 1px solid rgba(255, 0, 51, 0.3);
+      padding: 15px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-height: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quick-chip:active {
+      transform: scale(0.95);
+      background: var(--candy-red);
+    }
+
+    .quick-chip:hover {
+      border: 2px solid var(--candy-red) !important;
+      box-shadow: 0 0 15px rgba(255, 0, 51, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* SMART SEARCH BAR */
+    .smart-search-bar {
+      position: relative;
+      margin: 15px 0;
+    }
+
+    .smart-search-input {
+      width: 100%;
+      padding: 15px 50px 15px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 25px;
+      color: white;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .smart-search-input:focus {
+      border-color: var(--neon-blue);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .search-voice-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--neon-blue);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 5px 10px;
+    }
+
+    /* PRIMARY CTA */
+    .primary-cta {
+      background: linear-gradient(90deg, var(--candy-red), var(--neon-blue));
+      color: white;
+      padding: 18px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 800;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      width: 100%;
+      margin: 15px 0;
+      box-shadow: 0 4px 20px rgba(255, 0, 51, 0.3);
+      transition: transform 0.2s;
+    }
+
+    .primary-cta:active {
+      transform: scale(0.98);
+    }
+
+    .primary-cta:hover {
+      border: 2px solid var(--candy-red);
+      box-shadow: 0 6px 30px rgba(255, 0, 51, 0.6);
+      transform: translateY(-2px);
+    }
+
+    /* REFINE BUTTON */
+    .refine-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--glass-border);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      margin: 10px 0;
+    }
+
+    .refine-btn:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .refine-btn:hover {
+      border: 2px solid var(--candy-red) !important;
+      box-shadow: 0 0 15px rgba(255, 0, 51, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* VIEW TOGGLE */
+    .view-toggle {
+      display: flex;
+      margin-bottom: 15px;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      padding: 12px;
+      background: rgba(40,40,40,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: var(--candy-red);
+      color: #fff;
+      border-color: var(--candy-red);
+      box-shadow: 0 0 20px rgba(230,0,35,0.5);
+      transform: translateY(-1px);
+    }
+
+    .toggle-btn:hover {
+      border: 2px solid var(--candy-red) !important;
+      box-shadow: 0 0 15px rgba(255, 0, 51, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* BOTTOM SHEET */
+    .bottom-sheet {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      right: 0;
+      background: rgba(20, 20, 20, 0.98);
+      backdrop-filter: blur(20px);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid var(--glass-border);
+      max-height: 75vh;
+      overflow-y: auto;
+      z-index: 1500;
+      transition: bottom 0.3s ease-out;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .bottom-sheet.open {
+      bottom: 0;
+    }
+
+    .sheet-header {
+      position: sticky;
+      top: 0;
+      background: rgba(20, 20, 20, 0.95);
+      padding: 20px;
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #666;
+      border-radius: 2px;
+      margin: 10px auto 0;
+    }
+
+    .sheet-content {
+      padding: 20px;
+    }
+
+    .bottom-sheet-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1400;
+      display: none;
+      backdrop-filter: blur(5px);
+    }
+
+    .bottom-sheet-overlay.active {
+      display: block;
+    }
+
+    /* VOICE SEARCH FAB */
+    .voice-search-btn {
+      position: fixed;
+      bottom: 120px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--candy-red), #ff6b00);
+      border: none;
+      color: white;
+      font-size: 28px;
+      box-shadow: 0 4px 20px rgba(255, 0, 51, 0.4);
+      cursor: pointer;
+      z-index: 999;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .voice-search-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 30px rgba(255, 0, 51, 0.6);
+    }
+
+    .voice-search-btn.listening {
+      animation: pulse 1.5s infinite;
+      background: linear-gradient(135deg, #ff0050, #00f3ff);
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    /* EVENT CARDS */
+    .event-card {
+      background: var(--glass-panel);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 15px;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease, background 0.2s;
+      backdrop-filter: blur(5px);
+      min-height: 100px;
+    }
+
+    .event-card:active {
+      transform: scale(0.97);
+      background: rgba(40,40,40,0.9);
+    }
+
+    .event-card:hover {
+      border: 2px solid var(--candy-red) !important;
+      box-shadow: 0 0 15px rgba(255, 0, 51, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .event-distance {
+      color: var(--neon-blue);
+      font-size: 11px;
+      margin-top: 5px;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(0,202,255,0.4);
+    }
+
+    .saved-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+      animation: popIn 0.3s;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+
+    .calendar-icon {
+      width: 60px;
+      height: 60px;
+      background: #222;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.2);
+      text-align: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .cal-month {
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 3px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .cal-day {
+      font-size: 26px;
+      font-weight: 800;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      font-family: 'Montserrat', sans-serif;
+      background: #222;
+    }
+
+    #mapContainer {
+      height: 400px;
+      width: 100%;
+      border-radius: 12px;
+      display: none;
+      z-index: 1;
+      margin-top: 15px;
+      background: #0d0d0d;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .filter-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .filter-scroll::-webkit-scrollbar { display: none; }
+
+    .filter-select {
+      background: #222;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      white-space: nowrap;
+      appearance: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .filter-select:hover {
+      border-color: var(--candy-red);
+      color: white;
+      box-shadow: 0 0 8px rgba(255,0,0,0.2);
+    }
+
+    .filter-select.active {
+      border-color: var(--candy-red);
+      color: white;
+      box-shadow: 0 0 12px rgba(255,0,51,0.25);
+    }
+
+    .filter-block-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #777;
+      margin: 6px 0 10px 0;
+      font-weight: 800;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 12px 0;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: #ddd;
+      cursor: pointer;
+      transition: 0.15s;
+      user-select: none;
+    }
+
+    .chip:active { transform: scale(0.98); }
+
+    .chip.on {
+      border-color: var(--neon-blue);
+      color: white;
+      box-shadow: 0 0 12px rgba(0,243,255,0.18);
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 5px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tag-type {
+      background: rgba(0,202,255,0.15);
+      color: var(--neon-blue);
+      border: 1px solid rgba(0,202,255,0.3);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      background: #1a1a1a;
+      padding: 25px;
+      border-radius: 15px;
+      width: 95%;
+      max-width: 450px;
+      border: 1px solid rgba(255,255,255,0.15);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      background: #222;
+      border: 1px solid #444;
+      color: #fff;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      transition: border 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--neon-blue);
+      outline: none;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .primary {
+      background: var(--candy-red);
+      color: white;
+      box-shadow: 0 4px 15px rgba(230,0,35,0.4);
+    }
+
+    .secondary {
+      background: #333;
+      color: #ccc;
+      border: 1px solid #444;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      color: white;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: opacity 0.2s;
+    }
+
+    /* TOOLTIPS */
+    .tooltip-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip {
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      background: rgba(20, 20, 20, 0.98);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      white-space: nowrap;
+      z-index: 2000;
+      pointer-events: none;
+      opacity: 0;
+      border: 1px solid var(--candy-red);
+      box-shadow: 0 4px 20px rgba(255, 0, 51, 0.4);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      font-weight: 600;
+      line-height: 1.4;
+      max-width: 250px;
+      white-space: normal;
+      text-align: center;
+    }
+
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--candy-red);
+    }
+
+    .tooltip-wrapper:hover .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      transition-delay: 2s;
+    }
+
+    .nav-item .nav-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      background: rgba(20, 20, 20, 0.98);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 2000;
+      pointer-events: none;
+      opacity: 0;
+      border: 1px solid var(--candy-red);
+      box-shadow: 0 4px 20px rgba(255, 0, 51, 0.4);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    .nav-item .nav-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--candy-red);
+    }
+
+    .nav-item:hover .nav-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      transition-delay: 2s;
+    }
+
+    .hover-info {
+      position: absolute;
+      bottom: -80px;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      background: linear-gradient(135deg, rgba(255, 0, 51, 0.95), rgba(0, 0, 0, 0.95));
+      color: white;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 12px;
+      width: 250px;
+      z-index: 2000;
+      pointer-events: none;
+      opacity: 0;
+      border: 1px solid var(--candy-red);
+      box-shadow: 0 8px 30px rgba(255, 0, 51, 0.5);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      line-height: 1.5;
+    }
+
+    .hover-info::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 8px solid transparent;
+      border-bottom-color: var(--candy-red);
+    }
+
+    .tooltip-wrapper:hover .hover-info {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      transition-delay: 2s;
+    }
+
+    /* AI SEARCH */
+    .listening-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 20px;
+      color: var(--neon-blue);
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .listening-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .listening-dots span {
+      width: 8px;
+      height: 8px;
+      background: var(--neon-blue);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .listening-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .listening-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    .ai-result-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .ai-result-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--neon-blue);
+    }
+  </style>
+</head>
+<body>
+  <div class="carbon-bg"></div>
+
+  <div id="splash-layer">
+    <div class="powered-by">Powered by HotRod Happenings</div>
+    <img src="logo-rev.png" id="splash-logo" alt="REV" />
+    <div class="tap-prompt" id="rotatingSlogan">TAP SCREEN TO IGNITE</div>
+    <audio id="engine-sound" src="engine-rev.wav" preload="auto"></audio>
+  </div>
+
+  <div id="login-layer">
+    <div class="powered-by" style="margin-bottom:20px;">Powered by HotRod Happenings</div>
+    <div class="scanner-box">
+      <div class="scan-line"></div>
+      <div class="scan-icon">👤</div>
+    </div>
+    <div id="scan-status" style="color:var(--candy-red); font-size:12px; margin-bottom:20px; letter-spacing:1px; font-weight:bold;">SYSTEM LOCKED</div>
+
+    <div class="auth-container">
+      <div id="auth-error"></div>
+
+      <div id="form-login">
+        <input type="email" id="login-email" class="input-ghost" placeholder="Email Address" />
+        <div class="input-group">
+          <input type="password" id="login-password" class="input-ghost" placeholder="Password" />
+        </div>
+        <button onclick="realLogin()" class="btn-primary">IGNITION (LOGIN)</button>
+        <span class="switch-link" onclick="toggleAuth('signup')">New Driver? Register Here</span>
+      </div>
+
+      <div id="form-signup" style="display:none;">
+        <input type="text" id="signup-username" class="input-ghost" placeholder="Choose Username" />
+        <input type="email" id="signup-email" class="input-ghost" placeholder="Email Address" />
+        <div class="input-group">
+          <input type="password" id="signup-password" class="input-ghost" placeholder="Create Password" />
+        </div>
+        <button onclick="realSignup()" class="btn-primary">REGISTER & START</button>
+        <span class="switch-link" onclick="toggleAuth('login')">Already have an account? Login</span>
+      </div>
+
+      <button id="quick-btn" onclick="enterMainApp()" class="btn-primary" style="display:none; background:var(--neon-blue); color:black;">QUICK ACCESS</button>
+    </div>
+  </div>
+
+  <div id="mainApp" class="app-hidden">
+    <header class="app-header">
+      <div class="logo-small" style="display:flex; align-items:center;">
+        <img src="logo-rev.png" style="height:45px; filter:drop-shadow(0 2px 4px black);" />
+        <span class="version-tag" style="margin-left:10px;">v26.1 Scout</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="token-pill" onclick="alert('In-App Purchases: Buy Tokens: $0.99 for 10,000')"><span>🪙</span><span id="token-count">2,500</span></div>
+        <button class="icon-btn" onclick="openModal('searchModal')">🔍</button>
+      </div>
+    </header>
+
+    <section class="main-section" id="dashboardSection">
+      <!-- Compact Hero Section -->
+      <div id="hero-projector" class="hero-section">
+        <div class="hero-content">
+          <div class="hero-title" id="rotating-slogan">WHERE THE CULTURE PARKS</div>
+          <div style="font-size:12px; color:#ddd; margin-top:5px; text-shadow:0 1px 3px black;">Live Updates • Night Meets • Rally Points</div>
+        </div>
+      </div>
+
+      <!-- Smart Search Bar with Tooltip -->
+      <div class="smart-search-bar tooltip-wrapper">
+        <input 
+          type="text" 
+          class="smart-search-input" 
+          id="smartSearchInput"
+          placeholder="🔍 Search shows, clubs, cities…"
+          onkeyup="handleSmartSearch(this.value)"
+        />
+        <button class="search-voice-btn" onclick="openModal('aiSearchModal')">🎤</button>
+        <div class="tooltip">Search by event name, club name, city, or keyword</div>
+      </div>
+
+      <!-- Location Selector with Tooltip -->
+      <div style="padding:0 10px; margin-bottom:10px;" class="tooltip-wrapper">
+        <select id="distanceFilter" class="form-input" style="text-align:center; font-weight:bold; font-size:14px;" onchange="onRadiusChange()">
+          <option value="Unlimited">🌎 Unlimited Radius</option>
+          <option value="10">🎯 Up to 10 Miles</option>
+          <option value="25">🚲 Up to 25 Miles</option>
+          <option value="50" selected>🚗 Up to 50 Miles</option>
+          <option value="100">🔭 Up to 100 Miles</option>
+        </select>
+        <div class="tooltip">Set how far you want to search for events</div>
+      </div>
+
+      <!-- Primary CTA with Tooltip -->
+      <div class="tooltip-wrapper" style="position:relative;">
+        <button class="primary-cta" onclick="loadEvents()">🔥 SHOW ME WHAT'S HAPPENING</button>
+        <div class="hover-info">Instantly loads all events near you based on your radius setting. No filters required - just pure discovery!</div>
+      </div>
+
+      <!-- Quick Filter Chips with Tooltips -->
+      <div class="quick-chips">
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('tonight')">
+          🌙 Tonight
+          <div class="hover-info">Shows only events happening tonight in your area</div>
+        </div>
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('weekend')">
+          📅 This Weekend
+          <div class="hover-info">Filter to events happening this Saturday and Sunday</div>
+        </div>
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('nearme')">
+          📍 Near Me
+          <div class="hover-info">Automatically sets radius to 25 miles and shows closest events</div>
+        </div>
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('carshow')">
+          🏆 Car Shows
+          <div class="hover-info">Display only official car shows with judging and awards</div>
+        </div>
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('cruisein')">
+          🚗 Cruise-Ins
+          <div class="hover-info">Casual meet-ups where you cruise in and hang out</div>
+        </div>
+        <div class="quick-chip tooltip-wrapper" onclick="quickFilter('carsandcoffee')">
+          ☕ Cars & Coffee
+          <div class="hover-info">Morning meets at coffee shops - usually free and family friendly</div>
+        </div>
+      </div>
+
+      <!-- Refine & Vault Buttons with Tooltips -->
+      <div style="display:flex; gap:10px; margin:15px 0;">
+        <div class="tooltip-wrapper" style="flex:1;">
+          <button class="refine-btn" onclick="openBottomSheet()" style="width:100%;">⚙️ Refine Filters</button>
+          <div class="tooltip">Advanced filters for vehicle type, event format, and more</div>
+        </div>
+        <div class="tooltip-wrapper" style="flex:1;">
+          <button class="refine-btn" id="vaultToggleBtn" onclick="toggleVault()" style="width:100%;">⭐ My Vault</button>
+          <div class="tooltip">View only events you've saved to your personal collection</div>
+        </div>
+      </div>
+
+      <!-- View Toggle with Tooltips -->
+      <div class="view-toggle">
+        <div class="tooltip-wrapper" style="flex:1;">
+          <button class="toggle-btn active" id="listBtn" onclick="switchView('list')" style="width:100%;">📋 List</button>
+          <div class="tooltip">Show events in a scrollable list view</div>
+        </div>
+        <div class="tooltip-wrapper" style="flex:1;">
+          <button class="toggle-btn" id="mapBtn" onclick="switchView('map')" style="width:100%;">🗺️ Map</button>
+          <div class="tooltip">Show events on an interactive map with pins</div>
+        </div>
+      </div>
+
+      <!-- Events Container -->
+      <div id="eventsContainer"></div>
+      
+      <!-- Map Container -->
+      <div id="mapContainer"></div>
+    </section>
+
+    <section class="main-section" id="dreamShopSection"><div style="color:white; text-align:center;"><h3>Dream Shop Coming Soon</h3></div></section>
+
+    <section class="main-section" id="clubsSection">
+      <div style="margin-bottom:16px;">
+        <h2 style="color:white; font-family:'Montserrat',sans-serif; margin-bottom:6px;">Club Finder</h2>
+        <div style="color:#888; font-size:13px;">Browse verified and emerging car clubs in the REV network.</div>
+      </div>
+
+      <div id="clubsContainer"></div>
+    </section>
+
+    <section class="main-section" id="rideVaultSection"><div style="color:white; text-align:center;"><h3>Ride Vault Coming Soon</h3></div></section>
+    <section class="main-section" id="garageSection"><div style="color:white; text-align:center;"><h3>Garage Coming Soon</h3></div></section>
+    <section class="main-section" id="profileSection"><div style="color:white; text-align:center;"><h3>Profile Coming Soon</h3></div></section>
+
+    <nav class="bottom-nav">
+      <div class="nav-item active" onclick="navigateTo('dashboard', this)">
+        <span>🏠</span>Home
+        <div class="nav-tooltip">Discover events and shows near you</div>
+      </div>
+      <div class="nav-item" onclick="navigateTo('clubs', this)">
+        <span>🏁</span>Clubs
+        <div class="nav-tooltip">Browse car clubs and communities</div>
+      </div>
+      <div class="nav-item" onclick="navigateTo('dreamShop', this)">
+        <span>🏗️</span>Dream
+        <div class="nav-tooltip">Build your dream car project</div>
+      </div>
+      <div class="nav-item" onclick="navigateTo('garage', this)">
+        <span>🔧</span>Garage
+        <div class="nav-tooltip">Manage your personal collection</div>
+      </div>
+      <div class="nav-item" onclick="navigateTo('profile', this)">
+        <span>👤</span>Profile
+        <div class="nav-tooltip">View your profile and settings</div>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Bottom Sheet Overlay -->
+  <div class="bottom-sheet-overlay" id="bottomSheetOverlay" onclick="closeBottomSheet()"></div>
+
+  <!-- Bottom Sheet -->
+  <div class="bottom-sheet" id="filterBottomSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 style="margin:0; color:white;">Refine Your Search</h3>
+      <button class="icon-btn" onclick="closeBottomSheet()">✕</button>
+    </div>
+    <div class="sheet-content">
+      <!-- Event Type Filters -->
+      <div class="filter-block-title">EVENT TYPE</div>
+      <div class="filter-scroll" id="primaryTypeFilters"></div>
+
+      <!-- Vehicle Culture Tags -->
+      <div class="filter-block-title">VEHICLE CULTURE (OPTIONAL TAGS)</div>
+      <div class="chip-row" id="cultureChips"></div>
+
+      <!-- Format / Intent Tags -->
+      <div class="filter-block-title">FORMAT / INTENT (OPTIONAL TAGS)</div>
+      <div class="chip-row" id="formatChips"></div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="modal-btn secondary" onclick="clearAllTags()" style="flex:1;">🧹 Clear All</button>
+        <button class="modal-btn primary" onclick="applyFilters()" style="flex:1;">✓ Apply Filters</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Voice Search Modal -->
+  <div id="aiSearchModal" class="modal">
+    <div class="modal-content" style="max-height:85vh; display:flex; flex-direction:column;">
+      <h3 style="margin-top:0;">🎤 AI Voice Search</h3>
+      
+      <div id="aiSearchStatus" style="min-height:60px; margin:20px 0;">
+        <p style="color:#888; text-align:center; font-size:14px;">Ask about specific events or clubs by name</p>
+      </div>
+
+      <input 
+        type="text" 
+        id="aiSearchText" 
+        class="form-input" 
+        placeholder="Or type your search..."
+        style="margin-bottom:15px;"
+      />
+
+      <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <button class="modal-btn primary" onclick="startVoiceSearch()" style="flex:1;">
+          🎤 Start Voice Search
+        </button>
+        <button class="modal-btn secondary" onclick="runAISearch()" style="flex:1;">
+          🔍 Text Search
+        </button>
+      </div>
+
+      <div id="aiSearchResults" style="flex:1; overflow-y:auto;">
+        <!-- AI search results appear here -->
+      </div>
+
+      <button class="modal-btn secondary" onclick="closeModal('aiSearchModal')" style="margin-top:15px;">Close</button>
+    </div>
+  </div>
+
+  <!-- Floating Voice Search Button -->
+  <button class="voice-search-btn" id="voiceSearchFab" onclick="openModal('aiSearchModal')">
+    🎤
+  </button>
+
+  <div id="searchModal" class="modal">
+    <div class="modal-content" style="height:80vh; display:flex; flex-direction:column;">
+      <h3>📍 Set Location</h3>
+      <input type="text" id="searchInput" class="form-input" placeholder="Type City, Zip..." oninput="handleSearchInput(this.value)" />
+      <div id="searchResults" style="flex:1; overflow-y:auto; margin-top:10px; border-top:1px solid #333; padding-top:10px;"></div>
+      <button class="modal-btn secondary" onclick="closeModal('searchModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="eventDetailsModal" class="modal">
+    <div class="modal-content">
+      <div style="display:flex; gap:15px; align-items:flex-start; margin-bottom:15px;">
+        <div id="detailDateContainer"></div>
+        <div style="flex:1;">
+          <h3 id="detailTitle" style="margin-top:0; line-height:1.2;">Event</h3>
+          <div id="detailType" class="meta-tag tag-type" style="display:inline-block; margin-top:5px;"></div>
+          <p id="detailLoc" style="color:#aaa; font-size:13px; margin-top:8px;">Loc</p>
+        </div>
+      </div>
+
+      <div id="detailActions" style="display:flex; flex-direction:column; gap:10px; margin-top:15px;"></div>
+      <button class="modal-btn secondary" onclick="closeModal('eventDetailsModal')">Close</button>
+    </div>
+  </div>
+
+  <div id="clubDetailsModal" class="modal">
+    <div class="modal-content">
+      <h3 id="clubDetailName" style="margin-bottom:8px;">Club Name</h3>
+      <p id="clubDetailCity" style="color:#aaa; margin-bottom:8px;">City</p>
+      <p id="clubDetailSlug" style="color:#666; font-size:12px; margin-bottom:16px;">slug</p>
+      <div id="clubDetailMeta" style="font-size:12px; color:#aaa; margin-bottom:12px;"></div>
+      <div id="clubDetailDesc" style="font-size:13px; color:#ddd; margin-bottom:16px;"></div>
+      <div id="clubDetailActions" style="display:flex; flex-direction:column; gap:10px;"></div>
+      <button class="modal-btn secondary" onclick="closeModal('clubDetailsModal')">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // SUPABASE CONFIG
+    // ========================================
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_KEY = 'YOUR_SUPABASE_KEY';
+    let sb = null;
+
+    if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
+    // ========================================
+    // GLOBAL STATE
+    // ========================================
+    let currentUser = null;
+    let eventsStore = {};
+    let clubsStore = {};
+    let savedEventIds = new Set();
+    let userLat = null;
+    let userLon = null;
+    let userCityName = '';
+    let activePrimaryType = 'All';
+    let activeVehicleTags = new Set();
+    let activeFormatTags = new Set();
+    let maxRadius = 50;
+    let map = null;
+    let markers = [];
+    let currentPage = 'dashboard';
+    let isShowingVaultOnly = false;
+
+    // ========================================
+    // HERO BACKGROUND ROTATION
+    // ========================================
+    const heroBackgrounds = [
+      'car-show-1.jpg', 'cruise-in-1.jpg', 'cruise-in-2.jpg', 'exotic-1.jpg',
+      'classic-show-1.jpg', 'classic-show-2.jpg', 'chrome-detail-1.jpg',
+      'engine-red-1.jpg', 'engine-chrome-1.jpg', 'engine-turbo-1.jpg',
+      'engine-turbo-2.jpg', 'engine-426-1.jpg', 'cruise-night-1.jpg',
+      'interior-blue-1.jpg', 'interior-red-1.jpg', 'hot-rod-1.jpg',
+      'muscle-lineup-1.jpg', 'mustang-row-1.jpg', 'track-day-1.jpg',
+      'street-meet-1.jpg', 'museum-1.jpg', 'ferrari-lineup-1.jpg',
+      'camaro-hood-1.jpg', 'hood-scoop-1.jpg', 'wheel-detail-1.jpg'
+    ];
+
+    let heroBgIndex = 0;
+
+    function rotateHeroBackground() {
+      const hero = document.getElementById('hero-projector');
+      if (!hero) return;
+      
+      const nextImage = heroBackgrounds[heroBgIndex];
+      hero.style.backgroundImage = `url('/public/hero-backgrounds/${nextImage}')`;
+      hero.style.backgroundSize = 'cover';
+      hero.style.backgroundPosition = 'center';
+      
+      heroBgIndex = (heroBgIndex + 1) % heroBackgrounds.length;
+    }
+
+    setInterval(rotateHeroBackground, 9000);
+
+    // ========================================
+    // SMART SLOGAN ROTATION
+    // ========================================
+    const slogans = {
+      morning: [
+        "WHERE THE CULTURE PARKS",
+        "START YOUR ENGINES",
+        "COFFEE & CHROME AWAITS",
+        "RISE & GRIND GEARS",
+        "MORNING MEET SEASON"
+      ],
+      midday: [
+        "WHERE THE CULTURE PARKS",
+        "SHOWS RUNNING HOT",
+        "CRUISE CONTROL ACTIVATED",
+        "DAY MEET VIBES",
+        "ENGINE NOTES ECHO"
+      ],
+      evening: [
+        "WHERE THE CULTURE PARKS",
+        "NIGHT MEETS LOADING",
+        "SUNSET CRUISE SEASON",
+        "HEADLIGHTS UP",
+        "GOLDEN HOUR ROLLING"
+      ],
+      night: [
+        "WHERE THE CULTURE PARKS",
+        "NIGHT SHIFT ACTIVATED",
+        "AFTER DARK ASSEMBLY",
+        "STREET CULTURE LIVES",
+        "NEON LIGHTS & THROTTLE"
+      ]
+    };
+
+    let sloganIndex = 0;
+    let sloganRotationCount = 0;
+
+    function getTimeOfDay() {
+      const hour = new Date().getHours();
+      if (hour >= 6 && hour < 11) return 'morning';
+      if (hour >= 11 && hour < 16) return 'midday';
+      if (hour >= 16 && hour < 20) return 'evening';
+      return 'night';
+    }
+
+    function getRotationInterval() {
+      const timeOfDay = getTimeOfDay();
+      if (timeOfDay === 'morning') return 7000;
+      if (timeOfDay === 'midday') return 6000;
+      if (timeOfDay === 'evening') return 5000;
+      return 8000;
+    }
+
+    function rotateSlogan() {
+      const sloganEl = document.getElementById('rotating-slogan');
+      if (!sloganEl) return;
+
+      const timeOfDay = getTimeOfDay();
+      const pool = slogans[timeOfDay];
+
+      sloganRotationCount++;
+      if (sloganRotationCount % 5 === 0) {
+        sloganEl.textContent = "WHERE THE CULTURE PARKS";
+      } else {
+        sloganEl.textContent = pool[sloganIndex % pool.length];
+        sloganIndex++;
+      }
+
+      sloganEl.style.opacity = '0';
+      setTimeout(() => { sloganEl.style.opacity = '1'; }, 100);
+    }
+
+    let sloganIntervalId;
+    function startSloganRotation() {
+      if (sloganIntervalId) clearInterval(sloganIntervalId);
+      const interval = getRotationInterval();
+      rotateSlogan();
+      sloganIntervalId = setInterval(rotateSlogan, interval);
+    }
+
+    // ========================================
+    // SPLASH SCREEN
+    // ========================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const splash = document.getElementById('splash-layer');
+      const logo = document.getElementById('splash-logo');
+      const audio = document.getElementById('engine-sound');
+
+      splash.addEventListener('click', () => {
+        logo.classList.add('shake');
+        setTimeout(() => {
+          audio.play().catch(() => {});
+          logo.classList.remove('shake');
+          logo.classList.add('launch');
+          setTimeout(() => {
+            splash.style.opacity = '0';
+            setTimeout(() => {
+              splash.style.display = 'none';
+              showLoginLayer();
+            }, 1500);
+          }, 1500);
+        }, 100);
+      });
+
+      rotateHeroBackground();
+      initVoiceRecognition();
+    });
+
+    function showLoginLayer() {
+      const layer = document.getElementById('login-layer');
+      layer.style.display = 'flex';
+      setTimeout(() => { layer.style.opacity = '1'; }, 50);
+      setTimeout(() => {
+        document.getElementById('scan-status').textContent = 'AWAITING USER INPUT';
+        document.getElementById('quick-btn').style.display = 'block';
+      }, 1200);
+    }
+
+    function toggleAuth(mode) {
+      const loginForm = document.getElementById('form-login');
+      const signupForm = document.getElementById('form-signup');
+      if (mode === 'signup') {
+        loginForm.style.display = 'none';
+        signupForm.style.display = 'block';
+      } else {
+        loginForm.style.display = 'block';
+        signupForm.style.display = 'none';
+      }
+    }
+
+    async function realSignup() {
+      const username = document.getElementById('signup-username').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const err = document.getElementById('auth-error');
+
+      if (!username || !email || !password) {
+        err.textContent = '⚠ All fields required';
+        return;
+      }
+
+      if (!sb) {
+        err.textContent = '⚠ Supabase not configured';
+        return;
+      }
+
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) {
+        err.textContent = `⚠ ${error.message}`;
+        return;
+      }
+
+      const { error: insertError } = await sb.from('users').insert([{ user_id: data.user.id, username, email, tokens: 2500 }]);
+      if (insertError) console.error(insertError);
+
+      currentUser = { id: data.user.id, username, tokens: 2500 };
+      enterMainApp();
+    }
+
+    async function realLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const err = document.getElementById('auth-error');
+
+      if (!email || !password) {
+        err.textContent = '⚠ Email & password required';
+        return;
+      }
+
+      if (!sb) {
+        err.textContent = '⚠ Supabase not configured';
+        return;
+      }
+
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        err.textContent = `⚠ ${error.message}`;
+        return;
+      }
+
+      const { data: userData, error: userError } = await sb.from('users').select('*').eq('user_id', data.user.id).single();
+      if (userError) {
+        err.textContent = '⚠ User not found';
+        return;
+      }
+
+      currentUser = userData;
+      enterMainApp();
+    }
+
+    function enterMainApp() {
+      const loginLayer = document.getElementById('login-layer');
+      loginLayer.style.opacity = '0';
+      setTimeout(() => {
+        loginLayer.style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        loadUserLocation();
+        loadSavedEvents();
+        startSloganRotation();
+        loadEvents();
+        initFilters();
+        if (map) map.resize();
+      }, 1000);
+    }
+
+    // ========================================
+    // USER LOCATION
+    // ========================================
+    function loadUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            userLat = pos.coords.latitude;
+            userLon = pos.coords.longitude;
+            reverseGeocode(userLat, userLon);
+          },
+          () => {
+            userLat = 25.7617;
+            userLon = -80.1918;
+            userCityName = 'Miami, FL';
+            loadEvents();
+          }
+        );
+      } else {
+        userLat = 25.7617;
+        userLon = -80.1918;
+        userCityName = 'Miami, FL';
+        loadEvents();
+      }
+    }
+
+    async function reverseGeocode(lat, lon) {
+      try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const data = await resp.json();
+        const city = data.address.city || data.address.town || data.address.village || '';
+        const state = data.address.state || '';
+        userCityName = `${city}, ${state}`;
+        loadEvents();
+      } catch (e) {
+        userCityName = 'Your Area';
+        loadEvents();
+      }
+    }
+
+    // ========================================
+    // SAVED EVENTS
+    // ========================================
+    async function loadSavedEvents() {
+      if (!sb || !currentUser) return;
+      const { data, error } = await sb.from('saved_events').select('event_id').eq('user_id', currentUser.id);
+      if (!error && data) {
+        savedEventIds = new Set(data.map(d => d.event_id));
+      }
+    }
+
+    async function toggleSaveEvent(eventId) {
+      if (!sb || !currentUser) {
+        alert('⚠ Login required to save events');
+        return;
+      }
+
+      if (savedEventIds.has(eventId)) {
+        const { error } = await sb.from('saved_events').delete().eq('user_id', currentUser.id).eq('event_id', eventId);
+        if (!error) {
+          savedEventIds.delete(eventId);
+          loadEvents();
+        }
+      } else {
+        const { error } = await sb.from('saved_events').insert([{ user_id: currentUser.id, event_id: eventId }]);
+        if (!error) {
+          savedEventIds.add(eventId);
+          loadEvents();
+        }
+      }
+    }
+
+    // ========================================
+    // FILTER INITIALIZATION
+    // ========================================
+    const primaryTypes = ['All', 'Car Show', 'Cruise-In', 'Cars & Coffee', 'Track Day', 'Meet', 'Rally', 'Swap Meet', 'Autocross', 'Drift', 'Drag Race', 'Concours', 'Charity'];
+    const vehicleTags = ['Classic', 'Muscle', 'JDM', 'Euro', 'Exotic', 'Trucks', 'Lowrider', 'Rat Rod', 'Custom', 'Tuner', 'Off-Road', '4x4', 'Overland', 'Motorcycle', 'EV'];
+    const formatTags = ['Judged', 'Show & Shine', 'Concours', 'Charity', 'Family Friendly', 'Free Entry', 'Invite Only', 'Club Hosted', 'Night', 'Vendor Row'];
+
+    function initFilters() {
+      const typeContainer = document.getElementById('primaryTypeFilters');
+      if (typeContainer) {
+        typeContainer.innerHTML = '';
+        primaryTypes.forEach(type => {
+          const btn = document.createElement('div');
+          btn.className = 'filter-select';
+          btn.textContent = type;
+          if (type === activePrimaryType) btn.classList.add('active');
+          btn.onclick = () => setPrimaryType(type);
+          typeContainer.appendChild(btn);
+        });
+      }
+
+      const cultureContainer = document.getElementById('cultureChips');
+      if (cultureContainer) {
+        cultureContainer.innerHTML = '';
+        vehicleTags.forEach(tag => {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.textContent = tag;
+          if (activeVehicleTags.has(tag)) chip.classList.add('on');
+          chip.onclick = () => toggleVehicleTag(tag);
+          cultureContainer.appendChild(chip);
+        });
+      }
+
+      const formatContainer = document.getElementById('formatChips');
+      if (formatContainer) {
+        formatContainer.innerHTML = '';
+        formatTags.forEach(tag => {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.textContent = tag;
+          if (activeFormatTags.has(tag)) chip.classList.add('on');
+          chip.onclick = () => toggleFormatTag(tag);
+          formatContainer.appendChild(chip);
+        });
+      }
+    }
+
+    function setPrimaryType(type) {
+      activePrimaryType = type;
+      initFilters();
+      loadEvents();
+    }
+
+    function toggleVehicleTag(tag) {
+      if (activeVehicleTags.has(tag)) {
+        activeVehicleTags.delete(tag);
+      } else {
+        activeVehicleTags.add(tag);
+      }
+      initFilters();
+    }
+
+    function toggleFormatTag(tag) {
+      if (activeFormatTags.has(tag)) {
+        activeFormatTags.delete(tag);
+      } else {
+        activeFormatTags.add(tag);
+      }
+      initFilters();
+    }
+
+    function clearAllTags() {
+      activeVehicleTags.clear();
+      activeFormatTags.clear();
+      activePrimaryType = 'All';
+      initFilters();
+    }
+
+    function onRadiusChange() {
+      const sel = document.getElementById('distanceFilter');
+      const val = sel.value;
+      maxRadius = val === 'Unlimited' ? Infinity : parseInt(val);
+      loadEvents();
+    }
+
+    // ========================================
+    // BOTTOM SHEET CONTROLS
+    // ========================================
+    function openBottomSheet() {
+      document.getElementById('filterBottomSheet').classList.add('open');
+      document.getElementById('bottomSheetOverlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeBottomSheet() {
+      document.getElementById('filterBottomSheet').classList.remove('open');
+      document.getElementById('bottomSheetOverlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function applyFilters() {
+      closeBottomSheet();
+      loadEvents();
+    }
+
+    // ========================================
+    // QUICK FILTER CHIPS
+    // ========================================
+    function quickFilter(type) {
+      const now = new Date();
+      const today = now.getDay();
+      
+      switch(type) {
+        case 'tonight':
+          activePrimaryType = "All";
+          loadEvents();
+          break;
+          
+        case 'weekend':
+          activePrimaryType = "All";
+          loadEvents();
+          break;
+          
+        case 'nearme':
+          document.getElementById('distanceFilter').value = "25";
+          onRadiusChange();
+          break;
+          
+        case 'carshow':
+          setPrimaryType('Car Show');
+          break;
+          
+        case 'cruisein':
+          setPrimaryType('Cruise-In');
+          break;
+          
+        case 'carsandcoffee':
+          setPrimaryType('Cars & Coffee');
+          break;
+      }
+    }
+
+    // ========================================
+    // SMART SEARCH (TEXT)
+    // ========================================
+    let searchTimeout;
+
+    function handleSmartSearch(query) {
+      clearTimeout(searchTimeout);
+      
+      if (query.length < 3) {
+        loadEvents();
+        return;
+      }
+      
+      searchTimeout = setTimeout(() => {
+        performSmartSearch(query);
+      }, 500);
+    }
+
+    async function performSmartSearch(query) {
+      if (!sb) return;
+      
+      const container = document.getElementById('eventsContainer');
+      container.innerHTML = "<p style='text-align:center; color:#666;'>Searching...</p>";
+      
+      const { data: events, error: eventsError } = await sb
+        .from('events')
+        .select('*')
+        .or(`name.ilike.%${query}%,location.ilike.%${query}%,type.ilike.%${query}%`);
+      
+      if (eventsError) {
+        console.error('Search error:', eventsError);
+        return;
+      }
+      
+      eventsStore = {};
+      container.innerHTML = "";
+      
+      if (!events || events.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#666;'>No events found matching your search.</p>";
+        return;
+      }
+      
+      const enrichedEvents = events.map(evt => {
+        const evtLat = evt.lat ?? null;
+        const evtLon = evt.lon ?? evt.lng ?? null;
+        const confidence = Number(evt.confidence_score ?? 50);
+        const normalizedType = normalizeType(evt.type || "Car Show");
+
+        let dist = null;
+        if (userLat !== null && userLon !== null && evtLat !== null && evtLon !== null) {
+          dist = parseFloat(getDist(userLat, userLon, evtLat, evtLon));
+        }
+
+        return { ...evt, lat: evtLat, lon: evtLon, confidence_score: confidence, normalizedType, dist };
+      });
+      
+      enrichedEvents.forEach(evt => {
+        eventsStore[evt.id] = evt;
+        const dateHtml = generateDateHtml(evt.date);
+        const typeColor = getEventColor(evt.normalizedType);
+        const typeTag = evt.normalizedType
+          ? `<span class="meta-tag tag-type" style="background:${typeColor}20; color:${typeColor}; border-color:${typeColor}50;">${evt.normalizedType}</span>`
+          : '';
+        const savedHeart = savedEventIds.has(evt.id) ? `<div class="saved-badge">❤️</div>` : '';
+
+        const div = document.createElement('div');
+        div.className = 'event-card';
+        div.innerHTML = `
+          ${savedHeart}
+          ${dateHtml}
+          <div style="flex:1;">
+            <div style="font-weight:bold; font-size:18px; color:white;">${evt.name || "Untitled Event"}</div>
+            <div style="color:#aaa; font-size:14px; margin-top:4px;">${evt.location || "No location listed"}</div>
+            ${evt.dist !== null && !isNaN(evt.dist) ? `<div class="event-distance">📍 ${evt.dist} miles</div>` : ''}
+            <div class="tag-row">${typeTag}</div>
+          </div>`;
+        div.onclick = () => showEventDetails(evt);
+        container.appendChild(div);
+      });
+    }
+
+    // ========================================
+    // AI VOICE SEARCH
+    // ========================================
+    let recognition;
+    let isListening = false;
+
+    function initVoiceRecognition() {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = () => {
+          isListening = true;
+          const fab = document.getElementById('voiceSearchFab');
+          if (fab) fab.classList.add('listening');
+          
+          const status = document.getElementById('aiSearchStatus');
+          if (status) {
+            status.innerHTML = `
+              <div class="listening-indicator">
+                <span>🎤 Listening...</span>
+                <div class="listening-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            `;
+          }
+        };
+        
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          const status = document.getElementById('aiSearchStatus');
+          if (status) {
+            status.innerHTML = `
+              <div style="padding:15px; background:rgba(0,243,255,0.1); border:1px solid var(--neon-blue); border-radius:8px;">
+                <div style="color:var(--neon-blue); font-size:12px; margin-bottom:5px;">YOU SAID:</div>
+                <div style="color:white; font-size:16px;">"${transcript}"</div>
+              </div>
+            `;
+          }
+          
+          document.getElementById('aiSearchText').value = transcript;
+          setTimeout(() => runAISearch(), 1000);
+        };
+        
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          const status = document.getElementById('aiSearchStatus');
+          if (status) {
+            status.innerHTML = `<p style="color:var(--candy-red);">Error: ${event.error}. Please try again.</p>`;
+          }
+        };
+        
+        recognition.onend = () => {
+          isListening = false;
+          const fab = document.getElementById('voiceSearchFab');
+          if (fab) fab.classList.remove('listening');
+        };
+      }
+    }
+
+    function startVoiceSearch() {
+      if (!recognition) {
+        alert('⚠️ Voice recognition not supported in this browser. Please use Chrome or Safari.');
+        return;
+      }
+      
+      if (recognition && !isListening) {
+        recognition.start();
+      }
+    }
+
+    async function runAISearch() {
+      const query = document.getElementById('aiSearchText').value;
+      const resultsDiv = document.getElementById('aiSearchResults');
+      
+      if (!query || query.length < 3) {
+        resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">Please enter at least 3 characters.</p>';
+        return;
+      }
+      
+      if (!sb) {
+        resultsDiv.innerHTML = '<p style="color:var(--candy-red); text-align:center;">⚠ Supabase not configured</p>';
+        return;
+      }
+      
+      resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">Searching events and clubs...</p>';
+      
+      try {
+        const [eventsResult, clubsResult] = await Promise.all([
+          sb.from('events').select('*').or(`name.ilike.%${query}%,location.ilike.%${query}%,type.ilike.%${query}%`),
+          sb.from('clubs').select('*').or(`name.ilike.%${query}%,city.ilike.%${query}%,short_desc.ilike.%${query}%`)
+        ]);
+        
+        resultsDiv.innerHTML = '';
+        let resultsCount = 0;
+        
+        if (eventsResult.data && eventsResult.data.length > 0) {
+          resultsDiv.innerHTML += '<h4 style="color:var(--candy-red); margin:10px 0;">🏁 Events</h4>';
+          eventsResult.data.forEach(evt => {
+            resultsCount++;
+            const card = document.createElement('div');
+            card.className = 'ai-result-card';
+            card.innerHTML = `
+              <div style="font-weight:bold; color:white; font-size:16px;">${evt.name}</div>
+              <div style="color:#aaa; font-size:13px; margin-top:5px;">📍 ${evt.location || 'Location TBD'}</div>
+              <div style="color:#888; font-size:12px; margin-top:5px;">📅 ${evt.date || 'Date TBD'}</div>
+            `;
+            card.onclick = () => {
+              closeModal('aiSearchModal');
+              showEventDetails(evt);
+            };
+            resultsDiv.appendChild(card);
+          });
+        }
+        
+        if (clubsResult.data && clubsResult.data.length > 0) {
+          resultsDiv.innerHTML += '<h4 style="color:var(--neon-blue); margin:20px 0 10px 0;">🏁 Clubs</h4>';
+          clubsResult.data.forEach(club => {
+            resultsCount++;
+            const card = document.createElement('div');
+            card.className = 'ai-result-card';
+            card.innerHTML = `
+              <div style="font-weight:bold; color:white; font-size:16px;">${club.name}</div>
+              <div style="color:#aaa; font-size:13px; margin-top:5px;">📍 ${club.city || ''}, ${club.state || ''}</div>
+              ${club.short_desc ? `<div style="color:#888; font-size:12px; margin-top:5px;">${club.short_desc}</div>` : ''}
+            `;
+            card.onclick = () => {
+              closeModal('aiSearchModal');
+              showClubDetails(club);
+            };
+            resultsDiv.appendChild(card);
+          });
+        }
+        
+        if (resultsCount === 0) {
+          resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">No events or clubs found matching your search.</p>';
+        }
+        
+      } catch (error) {
+        console.error('AI Search error:', error);
+        resultsDiv.innerHTML = '<p style="color:var(--candy-red); text-align:center;">Search failed. Please try again.</p>';
+      }
+    }
+
+    // ========================================
+    // LOAD EVENTS
+    // ========================================
+    async function loadEvents() {
+      if (!sb) {
+        document.getElementById('eventsContainer').innerHTML = "<p style='text-align:center; color:#666;'>⚠ Supabase not configured</p>";
+        return;
+      }
+
+      const container = document.getElementById('eventsContainer');
+      container.innerHTML = "<p style='text-align:center; color:#666;'>Loading events...</p>";
+
+      let query = sb.from('events').select('*');
+
+      if (activePrimaryType !== 'All') {
+        query = query.eq('type', activePrimaryType);
+      }
+
+      const { data: events, error } = await query;
+
+      if (error) {
+        container.innerHTML = "<p style='text-align:center; color:var(--candy-red);'>Error loading events</p>";
+        console.error(error);
+        return;
+      }
+
+      eventsStore = {};
+      container.innerHTML = "";
+
+      if (!events || events.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#666;'>No events found</p>";
+        return;
+      }
+
+      let enrichedEvents = events.map(evt => {
+        const evtLat = evt.lat ?? null;
+        const evtLon = evt.lon ?? evt.lng ?? null;
+        const confidence = Number(evt.confidence_score ?? 50);
+        const normalizedType = normalizeType(evt.type || "Car Show");
+
+        let dist = null;
+        if (userLat !== null && userLon !== null && evtLat !== null && evtLon !== null) {
+          dist = parseFloat(getDist(userLat, userLon, evtLat, evtLon));
+        }
+
+        return { ...evt, lat: evtLat, lon: evtLon, confidence_score: confidence, normalizedType, dist };
+      });
+
+      if (maxRadius !== Infinity) {
+        enrichedEvents = enrichedEvents.filter(evt => evt.dist === null || evt.dist <= maxRadius);
+      }
+
+      if (isShowingVaultOnly) {
+        enrichedEvents = enrichedEvents.filter(evt => savedEventIds.has(evt.id));
+      }
+
+      enrichedEvents.sort((a, b) => {
+        if (a.dist === null && b.dist === null) return 0;
+        if (a.dist === null) return 1;
+        if (b.dist === null) return -1;
+        return a.dist - b.dist;
+      });
+
+      enrichedEvents.forEach(evt => {
+        eventsStore[evt.id] = evt;
+        const dateHtml = generateDateHtml(evt.date);
+        const typeColor = getEventColor(evt.normalizedType);
+        const typeTag = evt.normalizedType
+          ? `<span class="meta-tag tag-type" style="background:${typeColor}20; color:${typeColor}; border-color:${typeColor}50;">${evt.normalizedType}</span>`
+          : '';
+        const savedHeart = savedEventIds.has(evt.id) ? `<div class="saved-badge">❤️</div>` : '';
+
+        const div = document.createElement('div');
+        div.className = 'event-card';
+        div.innerHTML = `
+          ${savedHeart}
+          ${dateHtml}
+          <div style="flex:1;">
+            <div style="font-weight:bold; font-size:18px; color:white;">${evt.name || "Untitled Event"}</div>
+            <div style="color:#aaa; font-size:14px; margin-top:4px;">${evt.location || "No location listed"}</div>
+            ${evt.dist !== null && !isNaN(evt.dist) ? `<div class="event-distance">📍 ${evt.dist} miles</div>` : ''}
+            <div class="tag-row">${typeTag}</div>
+          </div>`;
+        div.onclick = () => showEventDetails(evt);
+        container.appendChild(div);
+      });
+    }
+
+    function toggleVault() {
+      isShowingVaultOnly = !isShowingVaultOnly;
+      const btn = document.getElementById('vaultToggleBtn');
+      if (isShowingVaultOnly) {
+        btn.style.background = 'var(--candy-red)';
+        btn.style.color = 'white';
+      } else {
+        btn.style.background = 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = 'white';
+      }
+      loadEvents();
+    }
+
+    // ========================================
+    // UTILITY FUNCTIONS
+    // ========================================
+    function normalizeType(type) {
+      const lower = type.toLowerCase().trim();
+      if (lower.includes('car show') || lower.includes('carshow')) return 'Car Show';
+      if (lower.includes('cruise') && lower.includes('in')) return 'Cruise-In';
+      if (lower.includes('cars') && lower.includes('coffee')) return 'Cars & Coffee';
+      if (lower.includes('track')) return 'Track Day';
+      if (lower.includes('meet')) return 'Meet';
+      return type;
+    }
+
+    function getEventColor(type) {
+      const colors = {
+        'Car Show': '#00caff',
+        'Cruise-In': '#ffd700',
+        'Cars & Coffee': '#ff6b00',
+        'Track Day': '#ff0050',
+        'Meet': '#00ff9d',
+        'Rally': '#9d00ff'
+      };
+      return colors[type] || '#888';
+    }
+
+    function getDist(lat1, lon1, lat2, lon2) {
+      const R = 3959;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return (R * c).toFixed(1);
+    }
+
+    function generateDateHtml(dateStr) {
+      if (!dateStr) {
+        return '<div class="calendar-icon"><div class="cal-month" style="background:#ff0050;">TBD</div><div class="cal-day">?</div></div>';
+      }
+
+      const d = new Date(dateStr + 'T00:00:00');
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const month = monthNames[d.getMonth()];
+      const day = d.getDate();
+
+      return `<div class="calendar-icon"><div class="cal-month" style="background:var(--candy-red);">${month}</div><div class="cal-day">${day}</div></div>`;
+    }
+
+    // ========================================
+    // EVENT DETAILS MODAL
+    // ========================================
+    function showEventDetails(evt) {
+      const modal = document.getElementById('eventDetailsModal');
+      document.getElementById('detailTitle').textContent = evt.name || "Untitled Event";
+      document.getElementById('detailLoc').textContent = evt.location || "No location listed";
+
+      const typeColor = getEventColor(evt.normalizedType);
+      const typeEl = document.getElementById('detailType');
+      typeEl.textContent = evt.normalizedType || 'Event';
+      typeEl.style.background = `${typeColor}20`;
+      typeEl.style.color = typeColor;
+      typeEl.style.borderColor = `${typeColor}50`;
+
+      document.getElementById('detailDateContainer').innerHTML = generateDateHtml(evt.date);
+
+      const actionsDiv = document.getElementById('detailActions');
+      actionsDiv.innerHTML = '';
+
+      const isSaved = savedEventIds.has(evt.id);
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'action-btn';
+      saveBtn.style.background = isSaved ? '#666' : 'var(--candy-red)';
+      saveBtn.textContent = isSaved ? '❤️ Saved' : '🤍 Save Event';
+      saveBtn.onclick = () => {
+        toggleSaveEvent(evt.id);
+        closeModal('eventDetailsModal');
+      };
+      actionsDiv.appendChild(saveBtn);
+
+      if (evt.lat && evt.lon) {
+        const dirBtn = document.createElement('button');
+        dirBtn.className = 'action-btn';
+        dirBtn.style.background = 'var(--neon-blue)';
+        dirBtn.textContent = '🗺 Directions';
+        dirBtn.onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${evt.lat},${evt.lon}`, '_blank');
+        actionsDiv.appendChild(dirBtn);
+      }
+
+      if (evt.source_url) {
+        const sourceBtn = document.createElement('button');
+        sourceBtn.className = 'action-btn';
+        sourceBtn.style.background = '#555';
+        sourceBtn.textContent = '🔗 View Source';
+        sourceBtn.onclick = () => window.open(evt.source_url, '_blank');
+        actionsDiv.appendChild(sourceBtn);
+      }
+
+      openModal('eventDetailsModal');
+    }
+
+    // ========================================
+    // CLUBS
+    // ========================================
+    async function loadClubs() {
+      if (!sb) {
+        document.getElementById('clubsContainer').innerHTML = "<p style='text-align:center; color:#666;'>⚠ Supabase not configured</p>";
+        return;
+      }
+
+      const container = document.getElementById('clubsContainer');
+      container.innerHTML = "<p style='text-align:center; color:#666;'>Loading clubs...</p>";
+
+      const { data: clubs, error } = await sb.from('clubs').select('*');
+
+      if (error) {
+        container.innerHTML = "<p style='text-align:center; color:var(--candy-red);'>Error loading clubs</p>";
+        return;
+      }
+
+      container.innerHTML = "";
+
+      if (!clubs || clubs.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#666;'>No clubs found</p>";
+        return;
+      }
+
+      clubs.forEach(club => {
+        clubsStore[club.id] = club;
+        const div = document.createElement('div');
+        div.className = 'event-card';
+        div.innerHTML = `
+          <div style="flex:1;">
+            <div style="font-weight:bold; font-size:18px; color:white;">${club.name}</div>
+            <div style="color:#aaa; font-size:14px; margin-top:4px;">${club.city || ''}, ${club.state || ''}</div>
+            ${club.short_desc ? `<div style="color:#888; font-size:12px; margin-top:5px;">${club.short_desc}</div>` : ''}
+          </div>`;
+        div.onclick = () => showClubDetails(club);
+        container.appendChild(div);
+      });
+    }
+
+    function showClubDetails(club) {
+      document.getElementById('clubDetailName').textContent = club.name;
+      document.getElementById('clubDetailCity').textContent = `${club.city || ''}, ${club.state || ''}`;
+      document.getElementById('clubDetailSlug').textContent = club.slug || '';
+      document.getElementById('clubDetailDesc').textContent = club.short_desc || 'No description available';
+
+      const actionsDiv = document.getElementById('clubDetailActions');
+      actionsDiv.innerHTML = '';
+
+      if (club.website_url) {
+        const webBtn = document.createElement('button');
+        webBtn.className = 'action-btn';
+        webBtn.style.background = 'var(--neon-blue)';
+        webBtn.textContent = '🌐 Website';
+        webBtn.onclick = () => window.open(club.website_url, '_blank');
+        actionsDiv.appendChild(webBtn);
+      }
+
+      if (club.facebook_url) {
+        const fbBtn = document.createElement('button');
+        fbBtn.className = 'action-btn';
+        fbBtn.style.background = '#4267B2';
+        fbBtn.textContent = '📘 Facebook';
+        fbBtn.onclick = () => window.open(club.facebook_url, '_blank');
+        actionsDiv.appendChild(fbBtn);
+      }
+
+      openModal('clubDetailsModal');
+    }
+
+    // ========================================
+    // VIEW TOGGLE
+    // ========================================
+    function switchView(view) {
+      const listBtn = document.getElementById('listBtn');
+      const mapBtn = document.getElementById('mapBtn');
+      const eventsContainer = document.getElementById('eventsContainer');
+      const mapContainer = document.getElementById('mapContainer');
+
+      if (view === 'list') {
+        listBtn.classList.add('active');
+        mapBtn.classList.remove('active');
+        eventsContainer.style.display = 'block';
+        mapContainer.style.display = 'none';
+      } else {
+        listBtn.classList.remove('active');
+        mapBtn.classList.add('active');
+        eventsContainer.style.display = 'none';
+        mapContainer.style.display = 'block';
+        initMap();
+      }
+    }
+
+    function initMap() {
+      if (map) {
+        map.resize();
+        return;
+      }
+
+      map = new maplibregl.Map({
+        container: 'mapContainer',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [userLon || -80.1918, userLat || 25.7617],
+        zoom: 10
+      });
+
+      map.on('load', () => {
+        Object.values(eventsStore).forEach(evt => {
+          if (evt.lat && evt.lon) {
+            const marker = new maplibregl.Marker({ color: '#ff0033' })
+              .setLngLat([evt.lon, evt.lat])
+              .setPopup(new maplibregl.Popup().setHTML(`<strong>${evt.name}</strong><br>${evt.location}`))
+              .addTo(map);
+            markers.push(marker);
+          }
+        });
+      });
+    }
+
+    // ========================================
+    // NAVIGATION
+    // ========================================
+    function navigateTo(page, el) {
+      currentPage = page;
+      
+      document.querySelectorAll('.main-section').forEach(s => s.style.display = 'none');
+
+      if (page === 'dashboard') {
+        document.getElementById('dashboardSection').style.display = 'block';
+        loadEvents();
+        if (map) setTimeout(() => map.resize(), 50);
+      } else if (page === 'clubs') {
+        document.getElementById('clubsSection').style.display = 'block';
+        loadClubs();
+      } else {
+        const section = document.getElementById(page + 'Section');
+        if (section) section.style.display = 'block';
+      }
+
+      document.querySelectorAll('.nav-item').forEach(n => {
+        n.classList.remove('active');
+      });
+      
+      if (el) {
+        el.classList.add('active');
+      }
+    }
+
+    // ========================================
+    // MODAL CONTROLS
+    // ========================================
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.style.display = 'none';
+    }
+
+    // ========================================
+    // LOCATION SEARCH
+    // ========================================
+    let searchDebounce;
+
+    async function handleSearchInput(val) {
+      clearTimeout(searchDebounce);
+      if (val.length < 3) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+      }
+
+      searchDebounce = setTimeout(async () => {
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">Searching...</p>';
+
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=5`);
+          const data = await resp.json();
+
+          resultsDiv.innerHTML = '';
+          if (data.length === 0) {
+            resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">No results</p>';
+            return;
+          }
+
+          data.forEach(place => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:12px; border-bottom:1px solid #333; cursor:pointer;';
+            div.innerHTML = `<div style="font-weight:bold; color:white;">${place.display_name}</div>`;
+            div.onclick = () => {
+              userLat = parseFloat(place.lat);
+              userLon = parseFloat(place.lon);
+              userCityName = place.display_name.split(',')[0];
+              closeModal('searchModal');
+              loadEvents();
+            };
+            resultsDiv.appendChild(div);
+          });
+        } catch (e) {
+          resultsDiv.innerHTML = '<p style="color:var(--candy-red); text-align:center;">Search failed</p>';
+        }
+      }, 500);
+    }
+  </script>
+</body>
+</html>

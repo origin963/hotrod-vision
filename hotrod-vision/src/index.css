@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-jet-black text-chrome font-sans overflow-x-hidden min-h-screen pb-20;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .bg-carbon-fiber {
+    @apply bg-[#111] bg-carbon bg-carbon-size bg-carbon-pos;
+  }
+  
+  .glass-card {
+    @apply bg-glass-panel border border-glass-border backdrop-blur-md shadow-[0_4px_15px_rgba(0,0,0,0.5)];
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Biometric Scanner Animation */
+@keyframes scanMove {
+  0% { top: 0; opacity: 0.5; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0; opacity: 0.5; }
+}
+
+.animate-scan {
+  animation: scanMove 1.5s infinite linear;
+}
